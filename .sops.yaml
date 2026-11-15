@@ -1,7 +1,7 @@
 keys:
-  - &waxby age1CHANGE_ME
+  - &waxby age1d34cgjgtdp9zn3rf862ezqpspauc0s022f8vtptjqj8x3f6j0g9swaca6w
 creation_rules:
-  - path_regex: secrets/[^/]+\.yaml$
+  - path_regex: secrets/.*
     key_groups:
       - age:
           - *waxby

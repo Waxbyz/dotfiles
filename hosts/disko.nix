@@ -1,7 +1,7 @@
 {
   disko.devices.disk.main = {
     type = "disk";
-    device = "/dev/disk/by-id/nvme-CHANGEME";
+    device = "/dev/disk/by-id/nvme-Samsung_SSD_980_500GB_S64DNL0T886277Z";
     content = {
       type = "gpt";
       partitions = {
