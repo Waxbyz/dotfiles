@@ -25,7 +25,7 @@
       ];
 
       icons = {
-        nixos = ../../assets/icons/systems/nixos_1.png
+        nixos = ../../assets/icons/systems/nixos_1.png;
       };
 
       settings = {
