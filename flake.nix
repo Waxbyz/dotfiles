@@ -15,6 +15,11 @@
       url = "github:nix-community/disko";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+   
+    visor-nix = {
+      url = "github:Waxbyz/visor-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = inputs:
@@ -32,6 +37,7 @@
           ./hosts
           inputs.disko.nixosModules.disko
           inputs.sops-nix.nixosModules.sops
+          inputs.visor-nix.nixosModules.default
           inputs.home-manager.nixosModules.home-manager
           {
             home-manager.useGlobalPkgs = true;

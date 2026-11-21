@@ -4,13 +4,15 @@
     efi.efiSysMountPoint = "/boot";
     timeout = 5;
 
+    grub.enable = false;
+
     visor = {
       enable = true;
       configurationLimit = 5;
-      entryName = "NixOS ({date})";
+      entryName = "NixOS #{gen}";
       windowsChainload = false;
 
-      wallpaper = ./assets/wallpapers/001.png;
+      wallpaper = ../../assets/wallpapers/001.png;
 
       extraEntries = [
         {
@@ -23,17 +25,23 @@
       ];
 
       settings = {
-        resolution = "native";
+        resolution = "max";
         quiet = true;
+
+        logo_mode = "none";
+        title = "none";
 
         clock = false;
 
         mouse = true;
-        mouse_speed = 4;
+        mouse_speed = 11;
 
         power_icons = true;
         power_icon_size = 44;
         power_position = "bottomright";
+        shutdown_icon = "\\EFI\\visor\\icons\\power_shutdown.png";
+        reboot_icon = "\\EFI\\visor\\icons\\power_reboot.png";
+        firmware_icon = "\\EFI\\visor\\icons\\power_bios.png";
 
         blur = 1;
         blur_title = true;
