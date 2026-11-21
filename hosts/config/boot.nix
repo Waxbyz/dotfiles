@@ -31,7 +31,7 @@
       settings = {
         resolution = "max";
         quiet = true;
-W
+
         logo_mode = "none";
         title = "none";
 
