@@ -24,6 +24,10 @@
         }
       ];
 
+      icons = {
+        nixos = ../../assets/icons/systems/nixos_1.png
+      };
+
       settings = {
         resolution = "max";
         quiet = true;
