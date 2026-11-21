@@ -12,8 +12,8 @@
         };
         wallpaper = {
           enabled = true;
-          directory = "${../assets/wallpapers}";
-          default.path = "${../assets/wallpapers/001.png}";
+          directory = "${../../assets/wallpapers}";
+          default.path = "${../../assets/wallpapers/001.png}";
         };
         shell = {
           niri_overview_type_to_launch_enabled = true;
