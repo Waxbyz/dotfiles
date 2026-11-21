@@ -15,10 +15,12 @@
       url = "github:nix-community/disko";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-   
     visor-nix = {
       url = "github:Waxbyz/visor-nix";
       inputs.nixpkgs.follows = "nixpkgs";
+    };
+    noctalia = {
+      url = "github:noctalia-dev/noctalia/cachix";
     };
   };
 
