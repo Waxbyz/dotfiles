@@ -13,6 +13,16 @@
   networking.networkmanager.enable = true;
   time.timeZone = "Europe/Moscow";
 
+  services.greetd = {
+  enable = true;
+  settings = {
+    default_session = {
+      command = "${pkgs.niri}/bin/niri-session";
+      user = "waxby";
+    };
+  };
+};
+
   programs.niri.enable = true;
   services.upower.enable = true;
   services.power-profiles-daemon.enable = true;
