@@ -7,5 +7,6 @@
     ./config/boot.nix
     ./config/nvidia.nix
     ./config/sops.nix
+    ./config/cleanup.nix
   ];
 }
