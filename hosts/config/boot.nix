@@ -2,7 +2,7 @@
   boot.loader = {
     efi.canTouchEfiVariables = true;
     efi.efiSysMountPoint = "/boot";
-    timeout = 5;
+    timeout = 10;
 
     grub.enable = false;
 
@@ -25,13 +25,13 @@
       ];
 
       icons = {
-        nixos = ../../assets/icons/systems/nixos_1.png;
+        nixos = ../../assets/icons/systems/nixos_2.png;
       };
 
       settings = {
         resolution = "max";
         quiet = true;
-
+W
         logo_mode = "none";
         title = "none";
 
