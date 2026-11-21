@@ -25,13 +25,13 @@
       ];
 
       icons = {
-        nixos = ../../assets/icons/systems/nixos_1.png;
+        nixos = ../../assets/icons/systems/nixos_2.png;
       };
 
       settings = {
         resolution = "max";
         quiet = true;
-
+W
         logo_mode = "none";
         title = "none";
 
