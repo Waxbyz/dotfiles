@@ -3,6 +3,10 @@
     xdg.configFile."niri/config.kdl".text = ''
       spawn-at-startup "noctalia"
 
+      output "HDMI-A-1" {
+          mode "1920x1080@144.013"
+      }
+
       input {
           keyboard {
               xkb {
