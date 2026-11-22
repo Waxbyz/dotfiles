@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
+import Quickshell.Services.SystemTray
 
 Scope {
     id: barScope
@@ -8,6 +9,31 @@ Scope {
     required property var clockObj
     required property var runner
     required property var stats
+
+    property bool blinkOn: true
+    Timer {
+        interval: 500
+        running: shell.isRecording || (!shell.batCharging && shell.batLabel !== "" && shell.batCap <= 10)
+        repeat: true
+        onTriggered: barScope.blinkOn = !barScope.blinkOn
+    }
+
+    // Helper functions matching V2.9b warning/critical states
+    function loadColor(val) {
+        if (val >= 80) return shell.red;
+        if (val >= 50) return shell.yellow;
+        return shell.fg;
+    }
+
+    function volColor(val, muted) {
+        if (muted || val <= 10) return shell.red;
+        if (val >= 50) return shell.yellow;
+        return shell.fg;
+    }
+
+    function pad2(n) {
+        return n < 10 ? ("0" + n) : String(n);
+    }
 
     Variants {
         model: Quickshell.screens
@@ -24,58 +50,126 @@ Scope {
             implicitHeight: 26
             color: shell.bg
 
+            // Bottom 1.5px border (#waybar > box)
             Rectangle {
                 anchors.bottom: parent.bottom
                 anchors.left: parent.left
                 anchors.right: parent.right
-                height: 1
-                color: shell.borderCol
+                height: 2
+                color: shell.highlightMed
             }
 
+            // niri/workspaces + [ + tray + / + idle_inhibitor + rec + ] + [ mpris ]
             RowLayout {
                 anchors.left: parent.left
-                anchors.leftMargin: 8
+                anchors.leftMargin: 6
                 anchors.verticalCenter: parent.verticalCenter
-                spacing: 6
+                spacing: 4
 
-                Repeater {
-                    model: shell.workspaces
-                    Rectangle {
-                        required property var modelData
-                        width: 18
-                        height: 18
-                        radius: 2
-                        color: modelData.is_active ? shell.blue : "transparent"
+                // niri/workspaces
+                RowLayout {
+                    spacing: 2
+                    Repeater {
+                        model: shell.workspaces
+                        Rectangle {
+                            required property var modelData
+                            property bool isEmpty: modelData.active_window_id === null || modelData.active_window_id === undefined
+                            width: 18
+                            height: 18
+                            color: modelData.is_active ? shell.accentAlt : "transparent"
 
-                        Text {
-                            anchors.centerIn: parent
-                            text: modelData.idx
-                            font.family: shell.fontFamily
-                            font.pixelSize: 11
-                            font.bold: modelData.is_active
-                            color: modelData.is_active ? shell.bg : shell.muted
-                        }
+                            Text {
+                                anchors.centerIn: parent
+                                text: modelData.idx
+                                font.family: shell.fontFamily
+                                font.pixelSize: 12
+                                font.weight: Font.Black
+                                color: modelData.is_active ? shell.bg : shell.fg
+                                opacity: modelData.is_active ? 1.0 : (parent.isEmpty ? 0.4 : 1.0)
+                            }
 
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: runner.exec(["niri", "msg", "action", "focus-workspace", String(modelData.idx)])
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: runner.exec(["niri", "msg", "action", "focus-workspace", String(modelData.idx)])
+                            }
                         }
                     }
                 }
 
+                // custom/separator "["
+                Text {
+                    text: "["
+                    font.family: shell.fontFamily
+                    font.pixelSize: 14
+                    font.bold: true
+                    color: shell.fg
+                    opacity: 0.25
+                }
+
+                // tray (visible only when items exist)
                 RowLayout {
-                    spacing: 0
-                    Text { text: "[ "; font.family: shell.fontFamily; font.pixelSize: 11; color: shell.muted }
-                    Text { text: "󰅶 idle "; font.family: shell.fontFamily; font.pixelSize: 11; color: shell.fg }
+                    visible: SystemTray.items.values.length > 0
+                    spacing: 4
+
+                    Repeater {
+                        model: SystemTray.items
+                        Item {
+                            required property var modelData
+                            width: 14
+                            height: 14
+
+                            Image {
+                                anchors.fill: parent
+                                source: modelData.icon
+                                sourceSize: Qt.size(14, 14)
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                acceptedButtons: Qt.LeftButton | Qt.RightButton
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: mouse => {
+                                    if (mouse.button === Qt.LeftButton)
+                                        modelData.activate();
+                                    else
+                                        modelData.secondaryActivate();
+                                }
+                            }
+                        }
+                    }
+
+                    // custom/separator7 "/" after tray
+                    Text {
+                        text: "/"
+                        font.family: shell.fontFamily
+                        font.pixelSize: 14
+                        font.bold: true
+                        color: shell.fg
+                        opacity: 0.25
+                    }
+                }
+
+                // idle_inhibitor: idle on / off
+                RowLayout {
+                    spacing: 4
+                    opacity: shell.idleInhibited ? 1.0 : 0.5
+
+                    Text {
+                        text: "idle"
+                        font.family: shell.fontFamily
+                        font.pixelSize: 12
+                        font.bold: true
+                        color: shell.fg
+                    }
                     Text {
                         text: shell.idleInhibited ? "on" : "off"
                         font.family: shell.fontFamily
-                        font.pixelSize: 11
-                        font.bold: true
-                        color: shell.idleInhibited ? shell.green : shell.blue
+                        font.pixelSize: 12
+                        font.weight: Font.Black
+                        font.italic: true
+                        color: shell.accentAlt
                     }
-                    Text { text: " ]"; font.family: shell.fontFamily; font.pixelSize: 11; color: shell.muted }
 
                     MouseArea {
                         anchors.fill: parent
@@ -84,48 +178,136 @@ Scope {
                     }
                 }
 
-                RowLayout {
-                    spacing: 0
-                    Text { text: "[ "; font.family: shell.fontFamily; font.pixelSize: 11; color: shell.muted }
-                    Text {
-                        text: shell.activeTitle.length > 40 ? shell.activeTitle.slice(0, 40) + "…" : shell.activeTitle
-                        font.family: shell.fontFamily
-                        font.pixelSize: 11
-                        color: shell.fg
+                // custom/screenrecording-indicator (blinks red when wf-recorder is running)
+                Text {
+                    visible: shell.isRecording
+                    text: "● rec"
+                    font.family: shell.fontFamily
+                    font.pixelSize: 12
+                    font.bold: true
+                    color: barScope.blinkOn ? shell.red : shell.bg
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: runner.exec(["pkill", "-SIGINT", "wf-recorder"])
                     }
-                    Text { text: " ]"; font.family: shell.fontFamily; font.pixelSize: 11; color: shell.muted }
+                }
+
+                // custom/separator2 "]"
+                Text {
+                    text: "]"
+                    font.family: shell.fontFamily
+                    font.pixelSize: 14
+                    font.bold: true
+                    color: shell.fg
+                    opacity: 0.25
+                }
+
+                // mpris in [ ... ] only while playing or paused
+                RowLayout {
+                    visible: shell.mprisText !== ""
+                    spacing: 4
+
+                    Text {
+                        text: "["
+                        font.family: shell.fontFamily
+                        font.pixelSize: 14
+                        font.bold: true
+                        color: shell.fg
+                        opacity: 0.25
+                    }
+
+                    Text {
+                        text: (shell.mprisState === "Paused" ? "󰏤 " : "󰎈 ") + shell.mprisText
+                        font.family: shell.fontFamily
+                        font.pixelSize: 12
+                        font.bold: true
+                        color: shell.mprisState === "Paused" ? shell.muted : shell.fg
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: runner.exec(["playerctl", "play-pause"])
+                        }
+                    }
+
+                    Text {
+                        text: "]"
+                        font.family: shell.fontFamily
+                        font.pixelSize: 14
+                        font.bold: true
+                        color: shell.fg
+                        opacity: 0.25
+                    }
                 }
             }
 
+            // [ 15:34 pm - thursday, oct 22 ]
             RowLayout {
                 anchors.centerIn: parent
-                spacing: 0
-                Text { text: "[ "; font.family: shell.fontFamily; font.pixelSize: 11; color: shell.muted }
-                Text {
-                    text: Qt.formatDateTime(clockObj.date, "hh:mm ap - dddd, MMM d").toLowerCase()
-                    font.family: shell.fontFamily
-                    font.pixelSize: 11
-                    color: shell.fg
-                }
-                Text { text: " ]"; font.family: shell.fontFamily; font.pixelSize: 11; color: shell.muted }
-            }
-
-            RowLayout {
-                anchors.right: parent.right
-                anchors.rightMargin: 10
-                anchors.verticalCenter: parent.verticalCenter
                 spacing: 6
 
-                Text { text: "/"; font.family: shell.fontFamily; font.pixelSize: 11; color: shell.muted }
+                Text {
+                    text: "["
+                    font.family: shell.fontFamily
+                    font.pixelSize: 14
+                    font.bold: true
+                    color: shell.fg
+                    opacity: 0.25
+                }
+
+                Text {
+                    text: Qt.formatDateTime(clockObj.date, "HH:mm ap - dddd, MMM dd").toLowerCase()
+                    font.family: shell.fontFamily
+                    font.pixelSize: 12
+                    font.bold: true
+                    color: shell.fg
+                }
+
+                Text {
+                    text: "]"
+                    font.family: shell.fontFamily
+                    font.pixelSize: 14
+                    font.bold: true
+                    color: shell.fg
+                    opacity: 0.25
+                }
+            }
+
+            // [ kb / bt / bl / bat / net / vol / mem / cpu ] + power
+            RowLayout {
+                anchors.right: parent.right
+                anchors.rightMargin: 6
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 5
+
+                Text {
+                    text: "["
+                    font.family: shell.fontFamily
+                    font.pixelSize: 14
+                    font.bold: true
+                    color: shell.fg
+                    opacity: 0.25
+                }
+
+                // Keyboard layout (us / ru)
                 RowLayout {
                     spacing: 4
-                    Text { text: "󰌌 kb"; font.family: shell.fontFamily; font.pixelSize: 11; color: shell.fg }
+                    Text {
+                        text: "󰌌 kb"
+                        font.family: shell.fontFamily
+                        font.pixelSize: 12
+                        font.bold: true
+                        color: shell.fg
+                    }
                     Text {
                         text: shell.kbLayout
                         font.family: shell.fontFamily
-                        font.pixelSize: 11
-                        font.bold: true
-                        color: shell.green
+                        font.pixelSize: 12
+                        font.weight: Font.Black
+                        font.italic: true
+                        color: shell.accentAlt
                     }
                     MouseArea {
                         anchors.fill: parent
@@ -134,28 +316,96 @@ Scope {
                     }
                 }
 
-                Text { text: "/"; font.family: shell.fontFamily; font.pixelSize: 11; color: shell.muted }
-                Text { text: "󰂯 bt"; font.family: shell.fontFamily; font.pixelSize: 11; color: shell.fg }
-                Text { text: shell.btState; font.family: shell.fontFamily; font.pixelSize: 11; font.bold: true; color: shell.blue }
+                Text { text: "/"; font.family: shell.fontFamily; font.pixelSize: 14; font.bold: true; color: shell.fg; opacity: 0.25 }
 
-                Text { text: "/"; font.family: shell.fontFamily; font.pixelSize: 11; color: shell.muted }
-                Text { text: "󰃠 bl"; font.family: shell.fontFamily; font.pixelSize: 11; color: shell.fg }
-                Text { text: shell.blVal; font.family: shell.fontFamily; font.pixelSize: 11; color: shell.fg }
-
-                Text { text: "/"; font.family: shell.fontFamily; font.pixelSize: 11; color: shell.muted }
-                Text { text: "󰖩 net"; font.family: shell.fontFamily; font.pixelSize: 11; color: shell.fg }
-                Text { text: shell.netVal; font.family: shell.fontFamily; font.pixelSize: 11; font.bold: true; color: shell.cyan }
-
-                Text { text: "/"; font.family: shell.fontFamily; font.pixelSize: 11; color: shell.muted }
+                // Bluetooth: bt off / on
                 RowLayout {
                     spacing: 4
-                    Text { text: "󰕾 vol"; font.family: shell.fontFamily; font.pixelSize: 11; color: shell.orange }
                     Text {
-                        text: shell.volVal
+                        text: "󰂯 bt"
                         font.family: shell.fontFamily
-                        font.pixelSize: 11
+                        font.pixelSize: 12
                         font.bold: true
-                        color: shell.volVal === "mute" ? shell.red : shell.orange
+                        color: shell.fg
+                    }
+                    Text {
+                        text: shell.btState + shell.btCount
+                        font.family: shell.fontFamily
+                        font.pixelSize: 12
+                        font.weight: Font.Black
+                        font.italic: true
+                        color: shell.accentAlt
+                    }
+                }
+
+                Text { text: "/"; font.family: shell.fontFamily; font.pixelSize: 14; font.bold: true; color: shell.fg; opacity: 0.25 }
+
+                // Backlight: bl 100%
+                Text {
+                    text: "󰃠 bl " + shell.blVal
+                    font.family: shell.fontFamily
+                    font.pixelSize: 12
+                    font.bold: true
+                    color: shell.fg
+                }
+
+                // Battery (shown if BAT0 exists)
+                RowLayout {
+                    visible: shell.batLabel !== ""
+                    spacing: 5
+                    Text { text: "/"; font.family: shell.fontFamily; font.pixelSize: 14; font.bold: true; color: shell.fg; opacity: 0.25 }
+                    Text {
+                        text: "󰁹 " + shell.batLabel
+                        font.family: shell.fontFamily
+                        font.pixelSize: 12
+                        font.bold: true
+                        color: (!shell.batCharging && shell.batCap <= 10)
+                            ? (barScope.blinkOn ? shell.red : shell.fg)
+                            : (shell.batCap <= 20 ? shell.yellow : shell.fg)
+                    }
+                }
+
+                Text { text: "/"; font.family: shell.fontFamily; font.pixelSize: 14; font.bold: true; color: shell.fg; opacity: 0.25 }
+
+                // Network: net on / 80% / off
+                RowLayout {
+                    spacing: 4
+                    Text {
+                        text: "󰖩 net"
+                        font.family: shell.fontFamily
+                        font.pixelSize: 12
+                        font.bold: true
+                        color: shell.fg
+                    }
+                    Text {
+                        text: shell.netVal
+                        font.family: shell.fontFamily
+                        font.pixelSize: 12
+                        font.weight: Font.Black
+                        font.italic: true
+                        color: shell.accentAlt
+                    }
+                }
+
+                Text { text: "/"; font.family: shell.fontFamily; font.pixelSize: 14; font.bold: true; color: shell.fg; opacity: 0.25 }
+
+                // Pulseaudio / PipeWire: vol 32% or vol muted
+                RowLayout {
+                    spacing: 4
+                    Text {
+                        text: "󰕾 vol"
+                        font.family: shell.fontFamily
+                        font.pixelSize: 12
+                        font.bold: true
+                        color: barScope.volColor(shell.volNum, shell.volMuted)
+                    }
+                    Text {
+                        text: shell.volMuted ? "muted" : (shell.volNum + "%")
+                        font.family: shell.fontFamily
+                        font.pixelSize: 12
+                        font.weight: shell.volMuted ? Font.Black : Font.Bold
+                        font.italic: shell.volMuted
+                        color: shell.volMuted ? shell.accentAlt : barScope.volColor(shell.volNum, shell.volMuted)
                     }
                     MouseArea {
                         anchors.fill: parent
@@ -174,19 +424,43 @@ Scope {
                     }
                 }
 
-                Text { text: "/"; font.family: shell.fontFamily; font.pixelSize: 11; color: shell.muted }
-                Text { text: "󰍛 mem"; font.family: shell.fontFamily; font.pixelSize: 11; color: shell.fg }
-                Text { text: shell.memVal; font.family: shell.fontFamily; font.pixelSize: 11; color: shell.fg }
+                Text { text: "/"; font.family: shell.fontFamily; font.pixelSize: 14; font.bold: true; color: shell.fg; opacity: 0.25 }
 
-                Text { text: "/"; font.family: shell.fontFamily; font.pixelSize: 11; color: shell.muted }
-                Text { text: " cpu"; font.family: shell.fontFamily; font.pixelSize: 11; color: shell.fg }
-                Text { text: shell.cpuVal; font.family: shell.fontFamily; font.pixelSize: 11; color: shell.fg }
+                // Memory: mem 40%
+                Text {
+                    text: "󰍛 mem " + barScope.pad2(shell.memNum) + "%"
+                    font.family: shell.fontFamily
+                    font.pixelSize: 12
+                    font.bold: true
+                    color: barScope.loadColor(shell.memNum)
+                }
 
-                Text { text: "/"; font.family: shell.fontFamily; font.pixelSize: 11; color: shell.muted }
+                Text { text: "/"; font.family: shell.fontFamily; font.pixelSize: 14; font.bold: true; color: shell.fg; opacity: 0.25 }
+
+                // CPU: cpu 02%
+                Text {
+                    text: " cpu " + barScope.pad2(shell.cpuNum) + "%"
+                    font.family: shell.fontFamily
+                    font.pixelSize: 12
+                    font.bold: true
+                    color: barScope.loadColor(shell.cpuNum)
+                }
+
+                Text {
+                    text: "]"
+                    font.family: shell.fontFamily
+                    font.pixelSize: 14
+                    font.bold: true
+                    color: shell.fg
+                    opacity: 0.25
+                }
+
+                // Power menu button
                 Text {
                     text: "⏻"
                     font.family: shell.fontFamily
-                    font.pixelSize: 12
+                    font.pixelSize: 13
+                    font.bold: true
                     color: shell.red
                     MouseArea {
                         anchors.fill: parent
@@ -198,6 +472,7 @@ Scope {
         }
     }
 
+    // Power menu popup
     PanelWindow {
         visible: shell.powerMenuOpen
         anchors {
@@ -205,8 +480,8 @@ Scope {
             right: true
         }
         margins {
-            top: 32
-            right: 10
+            top: 30
+            right: 8
         }
         implicitWidth: 160
         implicitHeight: 136
@@ -216,7 +491,7 @@ Scope {
         Rectangle {
             anchors.fill: parent
             color: shell.bg
-            border.color: shell.borderCol
+            border.color: shell.highlightMed
             border.width: 1
             radius: 4
 
@@ -246,7 +521,8 @@ Scope {
                             anchors.leftMargin: 8
                             text: modelData.label
                             font.family: shell.fontFamily
-                            font.pixelSize: 11
+                            font.pixelSize: 12
+                            font.bold: true
                             color: shell.fg
                         }
 

@@ -7,30 +7,38 @@ ShellRoot {
 
     readonly property color bg: "#16161e"
     readonly property color bgAlt: "#1f2335"
-    readonly property color borderCol: "#292e42"
+    readonly property color highlightMed: "#292e42"
     readonly property color fg: "#c0caf5"
     readonly property color muted: "#565f89"
-    readonly property color blue: "#7aa2f7"
-    readonly property color cyan: "#7dcfff"
-    readonly property color orange: "#e0af68"
+    readonly property color accent: "#7aa2f7"
+    readonly property color accentAlt: "#7dcfff"
+    readonly property color yellow: "#e0af68"
     readonly property color green: "#9ece6a"
     readonly property color red: "#f7768e"
     readonly property string fontFamily: "JetBrainsMono Nerd Font"
 
-    property var workspaces: [{ id: 1, idx: 1, is_active: true }]
-    property string activeTitle: ""
+    property var workspaces: [{ id: 1, idx: 1, is_active: true, active_window_id: 1 }]
     property var kbNames: ["us", "ru"]
     property string kbLayout: "us"
     property bool idleInhibited: false
-    property bool powerMenuOpen: false
-    property bool sessionLocked: true
+    property bool isRecording: false
+    property string mprisState: ""
+    property string mprisText: ""
 
     property string btState: "off"
+    property string btCount: ""
     property string blVal: "100%"
-    property string netVal: "up"
-    property string volVal: "50%"
-    property string memVal: "00%"
-    property string cpuVal: "00%"
+    property string batLabel: ""
+    property int batCap: 100
+    property bool batCharging: true
+    property string netVal: "on"
+    property int volNum: 50
+    property bool volMuted: false
+    property int memNum: 0
+    property int cpuNum: 0
+
+    property bool powerMenuOpen: false
+    property bool sessionLocked: false
 
     function shortLang(name) {
         let lower = (name || "").toLowerCase();
@@ -51,6 +59,7 @@ ShellRoot {
         }
     }
 
+    // Real-time Niri event stream for workspaces and keyboard layout
     Process {
         id: niriStream
         command: ["niri", "msg", "--json", "event-stream"]
@@ -70,7 +79,6 @@ ShellRoot {
                     }
                 } catch (e) {}
                 wsProc.running = true;
-                winProc.running = true;
             }
         }
     }
@@ -90,45 +98,59 @@ ShellRoot {
         }
     }
 
-    Process {
-        id: winProc
-        command: ["niri", "msg", "--json", "focused-window"]
-        running: true
-        stdout: StdioCollector {
-            onStreamFinished: {
-                try {
-                    let w = JSON.parse(this.text.trim());
-                    root.activeTitle = (w && w.title) ? w.title : "";
-                } catch (e) {
-                    root.activeTitle = "";
-                }
-            }
-        }
-    }
-
+    // Periodic collector for CPU, Mem, Audio, Network, Bluetooth, Backlight, Battery, MPRIS, wf-recorder
     Process {
         id: statsProc
         command: [
             "sh", "-c",
-            "cpu=$(awk '/^cpu / {u=$2+$4; t=$2+$4+$5; if(t>0) printf \"%02d%%\", u*100/t}' /proc/stat); " +
-            "mem=$(awk '/MemTotal/ {t=$2} /MemAvailable/ {a=$2} END {if(t>0) printf \"%02d%%\", (t-a)*100/t}' /proc/meminfo); " +
-            "vol=$(wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null | awk '{if ($3==\"[MUTED]\") print \"mute\"; else printf \"%d%%\", $2*100}'); " +
-            "net=$(nmcli -t -f TYPE,STATE dev 2>/dev/null | awk -F: '$2==\"connected\" {if($1==\"ethernet\") print \"eth\"; else if($1==\"wifi\") print \"wifi\"; exit}'); " +
+            "cpu=$(awk '/^cpu / {u=$2+$4; t=$2+$4+$5; if(t>0) printf \"%d\", u*100/t}' /proc/stat); " +
+            "mem=$(awk '/MemTotal/ {t=$2} /MemAvailable/ {a=$2} END {if(t>0) printf \"%d\", (t-a)*100/t}' /proc/meminfo); " +
+            "volline=$(wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null); " +
+            "vol=$(echo \"$volline\" | awk '{printf \"%d\", $2*100}'); " +
+            "muted=$(echo \"$volline\" | grep -q MUTED && echo 1 || echo 0); " +
+            "net=$(nmcli -t -f TYPE,STATE dev 2>/dev/null | awk -F: '$2==\"connected\" {if($1==\"ethernet\") print \"on\"; else if($1==\"wifi\") print \"wifi\"; exit}'); " +
+            "if [ \"$net\" = \"wifi\" ]; then sig=$(nmcli -t -f IN-USE,SIGNAL dev wifi 2>/dev/null | awk -F: '$1==\"*\" {print $2\"%\"; exit}'); net=${sig:-on}; fi; " +
             "bt=$(bluetoothctl show 2>/dev/null | awk '/Powered:/ {print ($2==\"yes\" ? \"on\" : \"off\")}'); " +
+            "btcnt=$(bluetoothctl devices Connected 2>/dev/null | wc -l); " +
             "bl=$(brightnessctl -m 2>/dev/null | awk -F, '{print $4}'); " +
-            "printf '%s|%s|%s|%s|%s|%s\\n' \"${cpu:-00%}\" \"${mem:-00%}\" \"${vol:-0%}\" \"${net:-off}\" \"${bt:-off}\" \"${bl:-100%}\""
+            "if [ -d /sys/class/power_supply/BAT0 ]; then " +
+            "  bcap=$(cat /sys/class/power_supply/BAT0/capacity 2>/dev/null || echo 100); " +
+            "  bst=$(cat /sys/class/power_supply/BAT0/status 2>/dev/null || echo Full); " +
+            "else bcap=-1; bst=None; fi; " +
+            "rec=$(pgrep -x wf-recorder >/dev/null && echo 1 || echo 0); " +
+            "pstat=$(playerctl status 2>/dev/null || echo Stopped); " +
+            "if [ \"$pstat\" = \"Playing\" ] || [ \"$pstat\" = \"Paused\" ]; then " +
+            "  pmeta=$(playerctl metadata --format '{{artist}} - {{title}}' 2>/dev/null | cut -c1-24); " +
+            "else pmeta=\"\"; fi; " +
+            "printf '%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\\n' " +
+            "\"${cpu:-0}\" \"${mem:-0}\" \"${vol:-0}\" \"$muted\" \"${net:-off}\" \"${bt:-off}\" \"${btcnt:-0}\" \"${bl:-100%}\" \"$bcap\" \"$bst\" \"$rec\" \"$pstat\" \"$pmeta\""
         ]
         running: true
         stdout: SplitParser {
             onRead: line => {
                 let p = line.trim().split("|");
-                if (p.length >= 6) {
-                    root.cpuVal = p[0];
-                    root.memVal = p[1];
-                    root.volVal = p[2];
-                    root.netVal = p[3];
-                    root.btState = p[4];
-                    root.blVal = p[5];
+                if (p.length >= 13) {
+                    root.cpuNum = parseInt(p[0]) || 0;
+                    root.memNum = parseInt(p[1]) || 0;
+                    root.volNum = parseInt(p[2]) || 0;
+                    root.volMuted = (p[3] === "1");
+                    root.netVal = p[4] || "off";
+                    root.btState = p[5] || "off";
+                    root.btCount = (p[5] === "on" && parseInt(p[6]) > 0) ? (" " + p[6]) : "";
+                    root.blVal = p[7] || "100%";
+                    let bcap = parseInt(p[8]);
+                    let bst = p[9];
+                    if (bcap >= 0) {
+                        root.batCap = bcap;
+                        root.batCharging = (bst === "Charging" || bst === "Full");
+                        let prefix = (bst === "Full") ? "bat_f" : (bst === "Not charging" ? "bat_p" : "bat");
+                        root.batLabel = prefix + " " + bcap + "%";
+                    } else {
+                        root.batLabel = "";
+                    }
+                    root.isRecording = (p[10] === "1");
+                    root.mprisState = p[11];
+                    root.mprisText = p[12];
                 }
             }
         }
@@ -141,7 +163,6 @@ ShellRoot {
         onTriggered: {
             statsProc.running = true;
             wsProc.running = true;
-            winProc.running = true;
         }
     }
 

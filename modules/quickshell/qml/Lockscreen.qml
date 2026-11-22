@@ -55,7 +55,7 @@ Scope {
 
                     Text {
                         Layout.alignment: Qt.AlignHCenter
-                        text: Qt.formatDateTime(clockObj.date, "hh:mm")
+                        text: Qt.formatDateTime(clockObj.date, "HH:mm")
                         font.family: shell.fontFamily
                         font.pixelSize: 84
                         font.bold: true
@@ -64,9 +64,10 @@ Scope {
 
                     Text {
                         Layout.alignment: Qt.AlignHCenter
-                        text: "[ " + Qt.formatDateTime(clockObj.date, "dddd, MMMM d").toLowerCase() + " ]"
+                        text: "[ " + Qt.formatDateTime(clockObj.date, "dddd, MMMM dd").toLowerCase() + " ]"
                         font.family: shell.fontFamily
                         font.pixelSize: 16
+                        font.bold: true
                         color: shell.muted
                     }
                 }
@@ -85,7 +86,7 @@ Scope {
                             height: 40
                             radius: 4
                             color: shell.bgAlt
-                            border.color: shell.borderCol
+                            border.color: shell.highlightMed
                             border.width: 1
 
                             Text {
@@ -93,8 +94,9 @@ Scope {
                                 text: shell.kbLayout
                                 font.family: shell.fontFamily
                                 font.pixelSize: 12
-                                font.bold: true
-                                color: shell.green
+                                font.weight: Font.Black
+                                font.italic: true
+                                color: shell.accentAlt
                             }
                         }
 
@@ -103,7 +105,7 @@ Scope {
                             height: 40
                             radius: 4
                             color: shell.bgAlt
-                            border.color: passInput.activeFocus ? shell.blue : shell.borderCol
+                            border.color: passInput.activeFocus ? shell.accent : shell.highlightMed
                             border.width: 1
 
                             TextInput {
@@ -143,7 +145,7 @@ Scope {
                             width: 80
                             height: 40
                             radius: 4
-                            color: unlockArea.containsMouse ? shell.cyan : shell.blue
+                            color: unlockArea.containsMouse ? shell.accentAlt : shell.accent
 
                             Text {
                                 anchors.centerIn: parent
@@ -175,6 +177,7 @@ Scope {
                         text: "[ " + lockScope.errorText + " ]"
                         font.family: shell.fontFamily
                         font.pixelSize: 11
+                        font.bold: true
                         color: shell.red
                     }
                 }
