@@ -1,11 +1,9 @@
 {
   flake.modules.homeManager.user = {
     xdg.configFile."niri/config.kdl".text = ''
-      spawn-at-startup "noctalia"
-
-      output "HDMI-A-1" {
-          mode "1920x1080@144.013"
-      }
+      spawn-at-startup "quickshell"
+      spawn-at-startup "mako"
+      spawn-at-startup "sh" "-c" "swww-daemon & sleep 0.5 && swww img ${../../assets/wallpapers/001.png}"
 
       input {
           keyboard {
@@ -20,8 +18,7 @@
       }
 
       layout {
-          gaps 12
-          background-color "transparent"
+          gaps 14
           center-focused-column "never"
 
           preset-column-widths {
@@ -31,64 +28,33 @@
           }
 
           focus-ring {
+              off
+          }
+
+          border {
+              on
               width 2
               active-color "#7aa2f7"
-              inactive-color "#414868"
+              inactive-color "#292e42"
           }
       }
 
       prefer-no-csd
 
       window-rule {
-          geometry-corner-radius 16
+          geometry-corner-radius 4
           clip-to-geometry true
-      }
-
-      window-rule {
-          match app-id="dev.noctalia.Noctalia"
-          open-floating true
-          default-column-width { fixed 1080; }
-          default-window-height { fixed 920; }
-      }
-
-      layer-rule {
-          match namespace="^noctalia-wallpaper"
-          place-within-backdrop true
-      }
-
-      layer-rule {
-          match namespace="^noctalia-(bar-[^\"]+|notification|dock|panel|attached-panel|osd)$"
-          background-effect {
-              xray false
-          }
-      }
-
-      layer-rule {
-          match namespace="noctalia-window-switcher"
-          background-effect {
-              blur true
-              xray false
-          }
-      }
-
-      debug {
-          honor-xdg-activation-with-invalid-serial
       }
 
       binds {
           Mod+Shift+Return { spawn "kitty"; }
-          Mod+D { spawn-sh "noctalia msg panel-toggle launcher"; }
-          Mod+N { spawn-sh "noctalia msg panel-toggle notifications"; }
-          Mod+S { spawn-sh "noctalia msg panel-toggle control-center"; }
-          Mod+Shift+Comma { spawn-sh "noctalia msg settings-toggle"; }
-          Super+Alt+L { spawn-sh "noctalia msg session lock"; }
+          Mod+D { spawn "fuzzel"; }
+          Mod+N { spawn "makoctl" "restore"; }
+          Mod+Alt+L { spawn "quickshell" "ipc" "call" "lock" "lock"; }
           Mod+Shift+Slash { show-hotkey-overlay; }
           Mod+Shift+E { quit; }
           Mod+Shift+P { power-off-monitors; }
           Mod+Escape allow-inhibiting=false { toggle-keyboard-shortcuts-inhibit; }
-
-          Alt+Tab { spawn-sh "noctalia msg window-switcher hold"; }
-          Alt+Shift+Tab { spawn-sh "noctalia msg window-switcher hold reverse"; }
 
           Mod+Shift+C { close-window; }
           Mod+Shift+F { fullscreen-window; }
@@ -169,17 +135,17 @@
           Mod+C           { center-column; }
           Mod+Ctrl+F      { expand-column-to-available-width; }
 
-          XF86AudioRaiseVolume allow-when-locked=true { spawn-sh "noctalia msg volume-up"; }
-          XF86AudioLowerVolume allow-when-locked=true { spawn-sh "noctalia msg volume-down"; }
-          XF86AudioMute        allow-when-locked=true { spawn-sh "noctalia msg volume-mute"; }
-          XF86AudioMicMute     allow-when-locked=true { spawn-sh "noctalia msg mic-mute"; }
+          XF86AudioRaiseVolume allow-when-locked=true { spawn "wpctl" "set-volume" "-l" "1.0" "@DEFAULT_AUDIO_SINK@" "5%+"; }
+          XF86AudioLowerVolume allow-when-locked=true { spawn "wpctl" "set-volume" "@DEFAULT_AUDIO_SINK@" "5%-"; }
+          XF86AudioMute        allow-when-locked=true { spawn "wpctl" "set-mute" "@DEFAULT_AUDIO_SINK@" "toggle"; }
+          XF86AudioMicMute     allow-when-locked=true { spawn "wpctl" "set-mute" "@DEFAULT_AUDIO_SOURCE@" "toggle"; }
 
           XF86AudioPlay allow-when-locked=true { spawn "playerctl" "play-pause"; }
           XF86AudioNext allow-when-locked=true { spawn "playerctl" "next"; }
           XF86AudioPrev allow-when-locked=true { spawn "playerctl" "previous"; }
 
-          XF86MonBrightnessUp   allow-when-locked=true { spawn-sh "noctalia msg brightness-up"; }
-          XF86MonBrightnessDown allow-when-locked=true { spawn-sh "noctalia msg brightness-down"; }
+          XF86MonBrightnessUp   allow-when-locked=true { spawn "brightnessctl" "set" "5%+"; }
+          XF86MonBrightnessDown allow-when-locked=true { spawn "brightnessctl" "set" "5%-"; }
 
           Print  { screenshot-screen; }
           Alt+P  { screenshot-window; }
